@@ -1,0 +1,358 @@
+{
+  "name": "FormaPro Academy — Pagos Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "formapro-pagos",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "54581edc-7c83-4d5a-af5b-1f3377180139",
+      "name": "Webhook — Recibir Pago",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -5056,
+        224
+      ],
+      "webhookId": "formapro-pagos-webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true }",
+        "options": {}
+      },
+      "id": "40bc81c5-b2a1-491a-b5b0-bafc03ceacda",
+      "name": "Responder { ok: true }",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -4832,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// NORMALIZACIÓN DE DATOS\n// Maneja: espacios, mayúsculas, importe como string, fechas y procesamiento por lotes\n// ============================================================\n\nconst items = $input.all();\nconst result = [];\n\nfor (const item of items) {\n  const body = item.json.body ?? item.json;\n  \n  // Soporte para lotes: si el cuerpo es un array de pagos\n  const rawPayments = Array.isArray(body) ? body : [body];\n  \n  for (const raw of rawPayments) {\n    if (!raw || Object.keys(raw).length === 0) continue;\n\n    // ID del pago: trim + uppercase\n    const id_pago = String(raw.id_pago ?? '').trim().toUpperCase();\n    \n    if (!id_pago) {\n      throw new Error('El campo id_pago es obligatorio para todos los registros');\n    }\n\n    // Email: trim + lowercase\n    const email = String(raw.email ?? '').trim().toLowerCase();\n\n    // Nombre: solo trim\n    const nombre = String(raw.nombre ?? '').trim();\n\n    // Curso: solo trim\n    const curso = String(raw.curso ?? '').trim();\n\n    // Importe: puede venir como string \"75000\" → convertir a número limpio\n    const importe = parseFloat(\n      String(raw.importe ?? '0').replace(/[^0-9.]/g, '')\n    ) || 0;\n\n    // Moneda: trim + uppercase\n    const moneda = String(raw.moneda ?? '').trim().toUpperCase();\n\n    // Estado: trim + lowercase\n    const estado = String(raw.estado ?? '').trim().toLowerCase();\n\n    // Fecha: normalizar a ISO 8601 UTC\n    let fecha;\n    try {\n      fecha = raw.fecha ? new Date(raw.fecha).toISOString() : new Date().toISOString();\n    } catch (e) {\n      fecha = new Date().toISOString();\n    }\n\n    result.push({\n      json: { id_pago, email, nombre, curso, importe, moneda, estado, fecha }\n    });\n  }\n}\n\nreturn result;\n"
+      },
+      "id": "e80c2381-9d62-41ba-b944-35fa7ec9aad4",
+      "name": "Normalizar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4832,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "completed"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "completed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "refunded"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "refunded"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "failed"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "failed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "50126653-40ba-4496-a101-c57d928ee676",
+      "name": "Switch — Estado del Pago",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -4608,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              },
+              "leftValue": "={{ $json.email }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "893c664c-e2b7-4ea3-90aa-2c3b6283ddbf",
+      "name": "¿Tiene email válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -4160,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=🎓 ¡Bienvenido/a a FormaPro Academy, {{ $json.nombre }}!",
+        "message": "=<div style=\"font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f4f8; color: #1a202c; padding: 40px 10px; min-height: 100%;\">\n  <div style=\"max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.10);\">\n    \n    <div style=\"background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); padding: 48px 40px 36px; text-align: center;\">\n      <h1 style=\"color: #ffffff; font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -0.5px;\">¡Tu inscripción está confirmada!</h1>\n      <p style=\"color: rgba(255,255,255,0.85); font-size: 15px; margin: 8px 0 0 0;\">Estamos emocionados de tenerte con nosotros</p>\n      <span style=\"display: inline-block; background-color: rgba(255,255,255,0.18); color: #ffffff; border-radius: 999px; padding: 4px 16px; font-size: 13px; margin-top: 14px;\">✅ Pago verificado</span>\n    </div>\n    \n    <div style=\"padding: 40px;\">\n      <p style=\"font-size: 20px; font-weight: 600; margin: 0 0 12px 0;\">Hola, {{ $json.nombre }} 👋</p>\n      <p style=\"color: #4a5568; font-size: 15px; line-height: 1.7; margin: 0 0 32px 0;\">Gracias por elegir <strong>FormaPro Academy</strong>. Tu pago ha sido procesado exitosamente y ya tienes acceso a tu curso. ¡Es momento de aprender y crecer profesionalmente!</p>\n      \n      <div style=\"background-color: #f7f9fc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 32px;\">\n        <p style=\"font-size: 12px; font-weight: 700; color: #4F46E5; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 16px 0;\">📋 Resumen de tu compra</p>\n        \n        <table style=\"width: 100%; border-collapse: collapse;\">\n          <tr style=\"border-bottom: 1px solid #e2e8f0;\">\n            <td style=\"padding: 10px 0; color: #718096; font-size: 14px;\">Curso</td>\n            <td style=\"padding: 10px 0; text-align: right; font-size: 14px; font-weight: 600; color: #1a202c;\">{{ $json.curso }}</td>\n          </tr>\n          <tr style=\"border-bottom: 1px solid #e2e8f0;\">\n            <td style=\"padding: 10px 0; color: #718096; font-size: 14px;\">Importe pagado</td>\n            <td style=\"padding: 10px 0; text-align: right; font-size: 17px; font-weight: 700; color: #4F46E5;\">{{ $json.importe }} {{ $json.moneda }}</td>\n          </tr>\n          <tr style=\"border-bottom: 1px solid #e2e8f0;\">\n            <td style=\"padding: 10px 0; color: #718096; font-size: 14px;\">N.º de pago</td>\n            <td style=\"padding: 10px 0; text-align: right; font-size: 14px; font-weight: 600; color: #1a202c;\">{{ $json.id_pago }}</td>\n          </tr>\n          <tr>\n            <td style=\"padding: 10px 0; color: #718096; font-size: 14px;\">Fecha</td>\n            <td style=\"padding: 10px 0; text-align: right; font-size: 14px; font-weight: 600; color: #1a202c;\">{{ $json.fecha }}</td>\n          </tr>\n        </table>\n      </div>\n      \n      <div style=\"text-align: center; margin: 32px 0 16px 0;\">\n        <a href=\"https://formapro.academy/mi-curso\" style=\"display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 999px; font-size: 15px; font-weight: 600;\">🚀 Acceder a mi curso ahora</a>\n      </div>\n    </div>\n    \n    <div style=\"background-color: #f7f9fc; padding: 24px 40px; text-align: center; border-top: 1px solid #e2e8f0;\">\n      <p style=\"color: #a0aec0; font-size: 12px; line-height: 1.6; margin: 0;\">Este email fue enviado a {{ $json.email }} porque realizaste una compra en FormaPro Academy.<br>Dudas: soporte@formapro.academy</p>\n    </div>\n    \n  </div>\n</div>",
+        "options": {}
+      },
+      "id": "772f3f7b-ddfc-4fff-bef8-b1c01bc87422",
+      "name": "Gmail — Email Bienvenida HTML",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -3936,
+        224
+      ],
+      "webhookId": "491ff2d8-fd78-4195-9448-1aeba953c958",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "J9q0YexPC9pFNY6b",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "pagos",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id_pago",
+              "condition": "eq",
+              "keyValue": "={{ $json.id_pago }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado",
+              "fieldValue": "refunded"
+            }
+          ]
+        }
+      },
+      "id": "48fea525-20a3-43bf-97de-60417e657df2",
+      "name": "Supabase — Marcar Refunded",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -4384,
+        416
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "PoVZcwHpnwMJtsfC",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "pagos",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "id_pago",
+              "fieldValue": "={{ $json.id_pago }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldId": "nombre",
+              "fieldValue": "={{ $json.nombre }}"
+            },
+            {
+              "fieldId": "curso",
+              "fieldValue": "={{ $json.curso }}"
+            },
+            {
+              "fieldId": "importe",
+              "fieldValue": "={{ $json.importe }}"
+            },
+            {
+              "fieldId": "moneda",
+              "fieldValue": "={{ $json.moneda }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "={{ $json.estado }}"
+            },
+            {
+              "fieldId": "fecha",
+              "fieldValue": "={{ $json.fecha }}"
+            }
+          ]
+        }
+      },
+      "id": "90b777f5-8040-4254-bfbf-3d61fe61c623",
+      "name": "Supabase — Guardar Pago (Upsert)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -4384,
+        224
+      ],
+      "continueOnFail": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "PoVZcwHpnwMJtsfC",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook — Recibir Pago": {
+      "main": [
+        [
+          {
+            "node": "Responder { ok: true }",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Normalizar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Datos": {
+      "main": [
+        [
+          {
+            "node": "Switch — Estado del Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch — Estado del Pago": {
+      "main": [
+        [
+          {
+            "node": "Supabase — Guardar Pago (Upsert)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Supabase — Marcar Refunded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase — Guardar Pago (Upsert)": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene email válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene email válido?": {
+      "main": [
+        [
+          {
+            "node": "Gmail — Email Bienvenida HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fbe313beade034fa8eeeb957206785c4c232fe005359ac1db821278f26933afa"
+  }
+}
