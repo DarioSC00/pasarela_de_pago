@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Download, AlertCircle, RefreshCw, Sparkles, Send, TrendingUp, Zap, Shield, BarChart3, Globe } from 'lucide-react';
+import { Download, AlertCircle, RefreshCw, Sparkles, Send, TrendingUp, Zap, Shield, BarChart3, Globe, Trash2, X, MessageCircle } from 'lucide-react';
 import { Icon } from '@iconify/react';
+import { useRef, useCallback } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { PaymentsChart } from '@/features/payments/components/PaymentsChart';
 import { PaymentsTablePaginated } from '@/features/payments/components/PaymentsTablePaginated';
@@ -48,11 +49,13 @@ function KpiCard({ title, value, delta, deltaUp, icon, accentColor, iconBg }: { 
   );
 }
 
-// ── AI Chat Component ──
-function AiAssistantPanel({ payments, convertedRevenue, displayCurrency, refundRate }: { payments: { estado: string; curso: string; moneda: string; importe: number }[]; convertedRevenue: number; displayCurrency: string; refundRate: number }) {
+// ── AI Chat Modal Component ──
+function AiChatModal({ isOpen, onClose, payments, convertedRevenue, displayCurrency, refundRate }: { isOpen: boolean; onClose: () => void; payments: { estado: string; curso: string; moneda: string; importe: number }[]; convertedRevenue: number; displayCurrency: string; refundRate: number }) {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<{ role: 'ai' | 'user'; text: string; color: string }[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [hasInit, setHasInit] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const topCourse = useMemo(() => {
     const map: Record<string, number> = {};
@@ -61,28 +64,49 @@ function AiAssistantPanel({ payments, convertedRevenue, displayCurrency, refundR
     return sorted[0]?.[0] ?? 'N/A';
   }, [payments]);
 
+  const courseRanking = useMemo(() => {
+    const map: Record<string, { count: number; revenue: number }> = {};
+    payments.filter(p => p.estado === 'completed').forEach(p => {
+      const cur = map[p.curso] ?? { count: 0, revenue: 0 };
+      cur.count += 1; cur.revenue += p.importe;
+      map[p.curso] = cur;
+    });
+    return Object.entries(map).sort((a, b) => b[1].count - a[1].count).slice(0, 5);
+  }, [payments]);
+
   const completedCount = payments.filter(p => p.estado === 'completed').length;
   const refundedCount = payments.filter(p => p.estado === 'refunded').length;
   const currencies = [...new Set(payments.map(p => p.moneda))];
+  const avgTicket = completedCount > 0 ? payments.filter(p => p.estado === 'completed').reduce((s, p) => s + p.importe, 0) / completedCount : 0;
 
+  // Auto-scroll on new messages
   useEffect(() => {
-    const initialMessages: { role: 'ai' | 'user'; text: string; color: string }[] = [];
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, isTyping]);
+
+  // Generate welcome messages when opened
+  useEffect(() => {
+    if (!isOpen || hasInit || payments.length === 0) return;
+    setHasInit(true);
+    const welcome: typeof messages = [
+      { role: 'ai', text: `👋 ¡Hola! Soy tu asistente de pagos FormaPro AI. He analizado ${payments.length} transacciones en tiempo real.`, color: '#818cf8' },
+    ];
     if (completedCount > 0) {
-      initialMessages.push({ role: 'ai', text: `📊 He analizado ${payments.length} transacciones. Tu curso más vendido es "${topCourse}" con una tasa de éxito del ${completedCount > 0 ? ((completedCount / payments.length) * 100).toFixed(0) : 0}%.`, color: '#818cf8' });
+      welcome.push({ role: 'ai', text: `📊 Resumen rápido: ${completedCount} pagos completados, ${refundedCount} reembolsos. Tasa de éxito: ${((completedCount / payments.length) * 100).toFixed(0)}%. Tu curso estrella es "${topCourse}".`, color: '#34d399' });
     }
     if (refundRate > 15) {
-      initialMessages.push({ role: 'ai', text: `⚠️ Alerta: La tasa de reembolso está en ${refundRate.toFixed(1)}%. Recomiendo revisar los cursos con más devoluciones para identificar problemas.`, color: '#fb7185' });
-    } else if (refundRate > 0) {
-      initialMessages.push({ role: 'ai', text: `✅ Excelente: Tu tasa de reembolso es solo ${refundRate.toFixed(1)}%, muy por debajo del promedio de la industria (8-12%).`, color: '#34d399' });
+      welcome.push({ role: 'ai', text: `⚠️ Alerta: La tasa de reembolso (${refundRate.toFixed(1)}%) está por encima del promedio. Recomiendo investigar los cursos con más devoluciones.`, color: '#fb7185' });
     }
-    if (currencies.length > 1) {
-      initialMessages.push({ role: 'ai', text: `🌍 Detecté ${currencies.length} divisas activas (${currencies.join(', ')}). Esto indica operación internacional — ¡gran señal de crecimiento!`, color: '#22d3ee' });
-    }
-    setMessages(initialMessages);
-  }, [payments.length, topCourse, completedCount, refundRate, currencies.length]);
+    welcome.push({ role: 'ai', text: '💡 Puedes preguntarme sobre: ingresos, cursos, reembolsos, monedas, ticket promedio, rendimiento, resumen, tendencias, predicciones, o cualquier otra consulta.', color: '#22d3ee' });
+    setMessages(welcome);
+  }, [isOpen, hasInit, payments.length, completedCount, refundedCount, topCourse, refundRate]);
+
+  const clearChat = useCallback(() => {
+    setMessages([{ role: 'ai', text: '🧹 Chat limpiado. ¿En qué te puedo ayudar?', color: '#818cf8' }]);
+  }, []);
 
   const handleSend = () => {
-    if (!query.trim()) return;
+    if (!query.trim() || isTyping) return;
     const userMsg = query.trim();
     setMessages(prev => [...prev, { role: 'user', text: userMsg, color: '#64748b' }]);
     setQuery('');
@@ -91,59 +115,97 @@ function AiAssistantPanel({ payments, convertedRevenue, displayCurrency, refundR
     setTimeout(() => {
       let response = '';
       const q = userMsg.toLowerCase();
-      if (q.includes('ingreso') || q.includes('revenue') || q.includes('ganancia')) {
-        response = `💰 Los ingresos totales en ${displayCurrency} son ${formatCurrency(convertedRevenue, displayCurrency)}. Basado en la tendencia actual, proyecto un crecimiento del 12-18% para el próximo trimestre.`;
-      } else if (q.includes('curso') || q.includes('popular') || q.includes('mejor')) {
-        response = `🏆 El curso más popular es "${topCourse}" con ${completedCount} ventas completadas. Te sugiero crear contenido relacionado para aprovechar la demanda.`;
-      } else if (q.includes('reembolso') || q.includes('refund') || q.includes('devolución')) {
-        response = `📋 Actualmente hay ${refundedCount} reembolsos (${refundRate.toFixed(1)}%). ${refundRate > 10 ? 'Considera mejorar las descripciones de los cursos para reducir expectativas incorrectas.' : 'La tasa es saludable y está dentro del rango esperado.'}`;
-      } else if (q.includes('moneda') || q.includes('divisa') || q.includes('currency')) {
-        response = `💱 Operas con ${currencies.length} monedas: ${currencies.join(', ')}. Para mejor análisis, usa la función de conversión y compara todo en ${displayCurrency}.`;
+
+      if (q.includes('ingreso') || q.includes('revenue') || q.includes('ganancia') || q.includes('ventas') || q.includes('factur')) {
+        const completedRevStr = formatCurrency(convertedRevenue, displayCurrency);
+        response = `💰 Ingresos totales (${displayCurrency}): ${completedRevStr}\n\nDesglose por moneda: ${currencies.map(c => `${c}: ${payments.filter(p => p.moneda === c && p.estado === 'completed').length} pagos`).join(' · ')}\n\nBasado en la velocidad de ventas actual, proyectamos un crecimiento del 12-18% para el próximo período.`;
+      } else if (q.includes('curso') || q.includes('popular') || q.includes('mejor') || q.includes('ranking') || q.includes('top')) {
+        const rankList = courseRanking.map(([name, d], i) => `${['🥇','🥈','🥉','4️⃣','5️⃣'][i]} ${name}: ${d.count} ventas`).join('\n');
+        response = `🏆 Ranking de cursos:\n\n${rankList}\n\nRecomendación: Crea contenido complementario para "${topCourse}" y considera bundles con los cursos más bajos del ranking.`;
+      } else if (q.includes('reembolso') || q.includes('refund') || q.includes('devolución') || q.includes('cancel')) {
+        const riskCourses = new Map<string, number>();
+        payments.filter(p => p.estado === 'refunded').forEach(p => riskCourses.set(p.curso, (riskCourses.get(p.curso) ?? 0) + 1));
+        const topRisk = [...riskCourses.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+        response = `📋 Análisis de reembolsos:\n\n• Total: ${refundedCount} reembolsos (${refundRate.toFixed(1)}% del total)\n• Benchmark industria: 8-12%\n• Estado: ${refundRate > 12 ? '⚠️ Por encima del promedio' : '✅ Dentro del rango saludable'}\n\n${topRisk.length ? 'Cursos con más reembolsos: ' + topRisk.map(([n, c]) => `${n} (${c})`).join(', ') : 'No hay cursos de riesgo identificados.'}\n\nRecomendación: ${refundRate > 10 ? 'Revisa las descripciones y previews de los cursos problemáticos.' : 'Mantén la calidad actual, todo se ve bien.'}`;
+      } else if (q.includes('moneda') || q.includes('divisa') || q.includes('currency') || q.includes('internacional')) {
+        const currDetail = currencies.map(c => {
+          const count = payments.filter(p => p.moneda === c).length;
+          return `${c}: ${count} transacciones (${((count / payments.length) * 100).toFixed(0)}%)`;
+        });
+        response = `💱 Análisis de divisas:\n\n${currDetail.join('\n')}\n\nTotal: ${currencies.length} monedas activas\n\n${currencies.length > 1 ? '🌍 Tu operación es internacional. Usa el convertidor de divisas para comparar todo en ' + displayCurrency + '.' : '📍 Operas en una sola moneda. Considera expandir a mercados internacionales.'}`;
+      } else if (q.includes('ticket') || q.includes('promedio') || q.includes('precio') || q.includes('media') || q.includes('average')) {
+        response = `🎟️ Análisis de ticket promedio:\n\n• Ticket medio: ${avgTicket.toFixed(2)} (moneda nativa promedio)\n• Pagos completados: ${completedCount}\n\nRecomendación: ${avgTicket > 50 ? 'Tu ticket promedio es alto, lo cual indica un producto premium. Mantén la propuesta de valor.' : 'Considera ofrecer paquetes o upsells para aumentar el ticket promedio.'}`;
+      } else if (q.includes('resumen') || q.includes('dashboard') || q.includes('general') || q.includes('estado') || q.includes('summary')) {
+        response = `📊 Resumen ejecutivo del dashboard:\n\n• Total transacciones: ${payments.length}\n• Completadas: ${completedCount} (${((completedCount / payments.length) * 100).toFixed(0)}%)\n• Reembolsos: ${refundedCount} (${refundRate.toFixed(1)}%)\n• Ingresos: ${formatCurrency(convertedRevenue, displayCurrency)}\n• Ticket promedio: ${avgTicket.toFixed(2)}\n• Monedas activas: ${currencies.join(', ')}\n• Curso top: ${topCourse}\n\nSalud general: ${refundRate < 10 ? '🟢 Excelente' : refundRate < 20 ? '🟡 Buena, con áreas de mejora' : '🔴 Necesita atención'}`;
+      } else if (q.includes('tendencia') || q.includes('trend') || q.includes('predicción') || q.includes('futuro') || q.includes('proyección')) {
+        response = `📈 Análisis de tendencias:\n\n• Velocidad actual: ~${(completedCount / 7).toFixed(1)} ventas/día\n• Proyección mensual: ~${Math.round(completedCount / 7 * 30)} transacciones\n• Proyección de ingresos: ${formatCurrency(convertedRevenue * 4.3, displayCurrency)} (mensual estimado)\n\nTendencia: ${completedCount > refundedCount * 5 ? '📈 Alcista — tu ratio es muy positivo.' : '📉 Revisa los reembolsos para mejorar la tendencia.'}`;
+      } else if (q.includes('ayuda') || q.includes('help') || q.includes('qué puedes') || q.includes('que puedes') || q.includes('hola') || q.includes('opciones')) {
+        response = `🤖 ¡Hola! Puedo ayudarte con:\n\n• 💰 "ingresos" — Análisis de ventas y revenue\n• 🏆 "cursos" — Ranking y rendimiento por curso\n• 📋 "reembolsos" — Análisis de devoluciones\n• 💱 "monedas" — Desglose por divisas\n• 🎟️ "ticket promedio" — Análisis de precios\n• 📊 "resumen" — Resumen ejecutivo completo\n• 📈 "tendencias" — Proyecciones y predicciones\n\n¡Escribe cualquier pregunta y haré mi mejor análisis!`;
       } else {
-        response = `🤖 Basándome en tus datos: tienes ${payments.length} pagos, ${completedCount} completados, ${refundedCount} reembolsados. Tu curso estrella es "${topCourse}". ¿Quieres que profundice en algún área específica?`;
+        response = `🤖 He analizado tu consulta "${userMsg}". Aquí va un resumen rápido de tus datos:\n\n• ${payments.length} pagos totales (${completedCount} completados, ${refundedCount} reembolsados)\n• Ingresos: ${formatCurrency(convertedRevenue, displayCurrency)}\n• Curso estrella: "${topCourse}"\n• Monedas: ${currencies.join(', ')}\n\n💡 Prueba preguntar algo más específico: "ingresos", "cursos", "reembolsos", "tendencias", "resumen" o "ayuda".`;
       }
       setMessages(prev => [...prev, { role: 'ai', text: response, color: '#818cf8' }]);
       setIsTyping(false);
-    }, 1200);
+    }, 800 + Math.random() * 600);
   };
 
+  if (!isOpen) return null;
+
   return (
-    <motion.div className="ai-panel" variants={itemVariants}>
-      <div className="ai-header">
-        <div className="ai-avatar">
-          <Sparkles size={22} color="#fff" />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-backdrop" style={{ zIndex: 60 }} onClick={onClose}>
+      <motion.div initial={{ scale: 0.9, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 30 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="ai-modal" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="ai-modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="ai-avatar">
+              <Sparkles size={22} color="#fff" />
+            </div>
+            <div>
+              <div className="ai-title">FormaPro AI</div>
+              <div className="ai-subtitle">Asistente inteligente · {payments.length} transacciones analizadas</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="ai-action-btn" onClick={clearChat} title="Limpiar chat">
+              <Trash2 size={16} />
+            </button>
+            <button className="ai-action-btn" onClick={onClose} title="Cerrar">
+              <X size={16} />
+            </button>
+          </div>
         </div>
-        <div>
-          <div className="ai-title">FormaPro AI Assistant</div>
-          <div className="ai-subtitle">Análisis inteligente de tus pagos en tiempo real</div>
-        </div>
-      </div>
-      <div className="ai-messages">
-        <AnimatePresence>
-          {messages.map((msg, i) => (
-            <motion.div key={i} className="ai-msg" initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-              <div className="ai-msg-dot" style={{ background: msg.color, boxShadow: `0 0 8px ${msg.color}60` }} />
-              <div className="ai-msg-text">
-                {msg.role === 'ai' && <div className="ai-msg-label" style={{ color: msg.color }}>IA</div>}
-                {msg.role === 'user' && <div className="ai-msg-label" style={{ color: '#94a3b8' }}>Tú</div>}
-                {msg.text}
+
+        {/* Messages */}
+        <div className="ai-messages" ref={scrollRef}>
+          <AnimatePresence>
+            {messages.map((msg, i) => (
+              <motion.div key={`${i}-${msg.text.slice(0,10)}`} className={`ai-msg ${msg.role === 'user' ? 'ai-msg-user' : ''}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                <div className="ai-msg-dot" style={{ background: msg.color, boxShadow: `0 0 8px ${msg.color}60` }} />
+                <div className="ai-msg-text">
+                  <div className="ai-msg-label" style={{ color: msg.role === 'ai' ? msg.color : '#94a3b8' }}>{msg.role === 'ai' ? 'FormaPro AI' : 'Tú'}</div>
+                  {msg.text.split('\n').map((line, j) => <span key={j}>{line}<br/></span>)}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          {isTyping && (
+            <motion.div className="ai-msg" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <div className="ai-msg-dot" style={{ background: '#818cf8', animation: 'pulse-dot 1s infinite' }} />
+              <div className="ai-msg-text" style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                <span className="typing-dots">Analizando datos</span>
               </div>
             </motion.div>
-          ))}
-        </AnimatePresence>
-        {isTyping && (
-          <motion.div className="ai-msg" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="ai-msg-dot" style={{ background: '#818cf8', animation: 'pulse-dot 1s infinite' }} />
-            <div className="ai-msg-text" style={{ color: '#94a3b8', fontStyle: 'italic' }}>FormaPro AI está analizando...</div>
-          </motion.div>
-        )}
-      </div>
-      <div className="ai-input-row">
-        <input className="ai-input" placeholder="Pregunta sobre tus pagos, ingresos, cursos..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} />
-        <button className="ai-send-btn" onClick={handleSend} aria-label="Enviar">
-          <Send size={18} />
-        </button>
-      </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="ai-input-row">
+          <input className="ai-input" placeholder="Escribe: ingresos, cursos, reembolsos, resumen, ayuda..." value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} autoFocus />
+          <button className="ai-send-btn" onClick={handleSend} disabled={isTyping} aria-label="Enviar">
+            <Send size={18} />
+          </button>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -154,6 +216,7 @@ export function PaymentsDashboard() {
   } = usePayments();
 
   const [displayCurrency, setDisplayCurrency] = useState('COP');
+  const [isAiOpen, setIsAiOpen] = useState(false);
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [conversionCurrency, setConversionCurrency] = useState('USD');
   const [selectedConversionId, setSelectedConversionId] = useState('');
@@ -226,8 +289,15 @@ export function PaymentsDashboard() {
         <KpiCard title="Ticket Promedio" value={formatCurrency(totalAverage, displayCurrency)} delta="+3.2%" deltaUp icon="mdi:ticket-percent-outline" accentColor="#fbbf24" iconBg="rgba(251,191,36,0.15)" />
       </motion.section>
 
-      {/* ── AI Panel ── */}
-      <AiAssistantPanel payments={payments} convertedRevenue={convertedRevenue} displayCurrency={displayCurrency} refundRate={refundRate} />
+      {/* ── AI Modal ── */}
+      <AnimatePresence>
+        <AiChatModal isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} payments={payments} convertedRevenue={convertedRevenue} displayCurrency={displayCurrency} refundRate={refundRate} />
+      </AnimatePresence>
+
+      {/* ── AI Floating Button ── */}
+      <motion.button className="ai-fab" onClick={() => setIsAiOpen(true)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} title="Abrir asistente IA">
+        <Sparkles size={24} />
+      </motion.button>
 
       {/* ── Insight ── */}
       <motion.div className="insight-banner" variants={itemVariants}>
