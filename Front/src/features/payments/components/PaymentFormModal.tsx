@@ -43,8 +43,8 @@ export function PaymentFormModal({ isOpen, onClose, onSubmit }: PaymentFormModal
     setLoading(true);
 
     try {
-      if (!formData.id_pago || !formData.nombre || !formData.curso || !formData.importe || !formData.moneda || !formData.estado) {
-        throw new Error('Por favor, completa todos los campos requeridos.');
+      if (!formData.id_pago || !formData.nombre || !formData.curso || !formData.importe || !formData.moneda || !formData.estado || !formData.email) {
+        throw new Error('Por favor, completa todos los campos requeridos, incluido el email.');
       }
 
       await onSubmit({
@@ -116,9 +116,9 @@ export function PaymentFormModal({ isOpen, onClose, onSubmit }: PaymentFormModal
             </div>
 
             <div className="filter-group">
-              <label>Email (Opcional)</label>
+              <label>Email *</label>
               <div className="search-wrap" style={{ padding: '8px 12px' }}>
-                <input name="email" type="email" placeholder="cliente@correo.com" value={formData.email} onChange={handleChange} />
+                <input name="email" type="email" placeholder="cliente@correo.com" value={formData.email} onChange={handleChange} required />
               </div>
             </div>
 
