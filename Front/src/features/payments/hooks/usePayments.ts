@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { fetchPayments } from '@/features/payments/services/paymentsService';
+import { fetchPayments, insertPayment } from '@/features/payments/services/paymentsService';
 import type { Payment } from '@/lib/types';
+import * as XLSX from 'xlsx';
+import { toast } from 'react-toastify';
 
 type CurrencySummary = {
   totalRevenue: number;
@@ -27,7 +29,9 @@ export function usePayments() {
         const data = await fetchPayments();
         setPayments(data);
       } catch (err) {
-        setError((err as Error)?.message ?? 'Error al cargar pagos');
+        const msg = (err as Error)?.message ?? 'Error al cargar pagos';
+        setError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
@@ -98,30 +102,55 @@ export function usePayments() {
     }, {});
   }, [summaryByCurrency]);
 
-  const exportCsv = () => {
-    const header = ['id_pago', 'email', 'nombre', 'curso', 'importe', 'moneda', 'estado', 'fecha'];
-    const rows = filteredPayments.map((payment) => [
-      payment.id_pago,
-      payment.email,
-      payment.nombre,
-      payment.curso,
-      payment.importe.toString(),
-      payment.moneda,
-      payment.estado,
-      payment.fecha,
-    ]);
+  const exportExcel = () => {
+    try {
+      const dataForExport = filteredPayments.map((p) => ({
+        'ID Pago': p.id_pago,
+        'Cliente': p.nombre,
+        'Email': p.email || 'N/A',
+        'Curso': p.curso,
+        'Importe': Number(p.importe),
+        'Moneda': p.moneda,
+        'Estado': p.estado === 'completed' ? 'Completado' : 'Reembolsado',
+        'Fecha': new Date(p.fecha).toLocaleString('es-CO'),
+      }));
 
-    const csvContent = [header, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
+      const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Pagos');
+      
+      // Auto-size columns roughly
+      const colWidths = [
+        { wch: 20 }, // ID Pago
+        { wch: 25 }, // Cliente
+        { wch: 30 }, // Email
+        { wch: 35 }, // Curso
+        { wch: 15 }, // Importe
+        { wch: 10 }, // Moneda
+        { wch: 15 }, // Estado
+        { wch: 25 }, // Fecha
+      ];
+      worksheet['!cols'] = colWidths;
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'pagos_exportados.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+      XLSX.writeFile(workbook, 'Reporte_Pagos_FormaPro.xlsx');
+      toast.success('¡Reporte exportado correctamente en Excel!');
+    } catch (err) {
+      toast.error('Ocurrió un error al exportar el archivo');
+    }
+  };
+
+  const addPayment = async (paymentData: Partial<Payment>) => {
+    try {
+      const newPayment = await insertPayment(paymentData);
+      setPayments((prev) => [newPayment, ...prev]);
+      toast.success('¡Pago creado y sincronizado con éxito!');
+      return newPayment;
+    } catch (err) {
+      const msg = (err as Error)?.message ?? 'Error al crear pago';
+      setError(msg);
+      toast.error(msg);
+      throw err;
+    }
   };
 
   return {
@@ -140,6 +169,7 @@ export function usePayments() {
     paymentsCount,
     refundCount,
     averageTicketByCurrency,
-    exportCsv,
+    exportExcel,
+    addPayment,
   };
 }

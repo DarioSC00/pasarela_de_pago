@@ -20,3 +20,22 @@ export async function fetchPayments(): Promise<Payment[]> {
     moneda: payment.moneda.toUpperCase(),
   }));
 }
+
+export async function insertPayment(payment: Partial<Payment>): Promise<Payment> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('pagos')
+    .insert([payment])
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    ...(data as Payment),
+    importe: Number(data.importe),
+    moneda: data.moneda.toUpperCase(),
+  };
+}

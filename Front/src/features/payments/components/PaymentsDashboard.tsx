@@ -11,6 +11,7 @@ import { PaymentsTrendChart } from '@/features/payments/components/PaymentsTrend
 import { PaymentsDonutChart } from '@/features/payments/components/PaymentsDonutChart';
 import { PaymentsCourseRanking } from '@/features/payments/components/PaymentsCourseRanking';
 import { PaymentsRecentActivity } from '@/features/payments/components/PaymentsRecentActivity';
+import { PaymentFormModal } from '@/features/payments/components/PaymentFormModal';
 import { usePayments } from '@/features/payments/hooks/usePayments';
 import { formatCurrency } from '@/lib/format';
 import { HeroBadge } from '@/lib/ui/HeroBadge';
@@ -18,6 +19,7 @@ import { HeroButton } from '@/lib/ui/HeroButton';
 import { HeroCard } from '@/lib/ui/HeroCard';
 import { convertAmount, fetchExchangeRates, supportedCurrencies } from '@/lib/currency';
 import { getDashboardInsight } from '@/lib/insights';
+import { toast } from 'react-toastify';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -212,11 +214,12 @@ function AiChatModal({ isOpen, onClose, payments, convertedRevenue, displayCurre
 
 export function PaymentsDashboard() {
   const {
-    payments, loading, error, searchTerm, setSearchTerm, statusFilter, setStatusFilter, currencyFilter, setCurrencyFilter, availableCurrencies, paymentsCount, refundCount, exportCsv,
+    payments, loading, error, searchTerm, setSearchTerm, statusFilter, setStatusFilter, currencyFilter, setCurrencyFilter, availableCurrencies, paymentsCount, refundCount, exportExcel, addPayment,
   } = usePayments();
 
   const [displayCurrency, setDisplayCurrency] = useState('COP');
   const [isAiOpen, setIsAiOpen] = useState(false);
+  const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [conversionCurrency, setConversionCurrency] = useState('USD');
   const [selectedConversionId, setSelectedConversionId] = useState('');
@@ -239,6 +242,7 @@ export function PaymentsDashboard() {
       } catch {
         if (!active) return;
         setRatesError('No se pudo actualizar tasas en línea, usando valores locales.');
+        toast.warning('Usando tasas de cambio locales (sin conexión API).');
       }
     };
     loadRates();
@@ -271,11 +275,14 @@ export function PaymentsDashboard() {
           <p className="dash-sub"><Globe size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Ingresos · Tendencias · Análisis global en tiempo real</p>
         </div>
         <div className="dash-actions">
+          <HeroButton variant="primary" icon={<Icon icon="mdi:plus" width={18} />} onClick={() => setIsPaymentFormOpen(true)}>
+            Nuevo Pago
+          </HeroButton>
           <HeroButton variant="secondary" icon={<RefreshCw size={18} />} onClick={() => { setSelectedConversionId(payments[0]?.id_pago ?? ''); setIsConversionOpen(true); }}>
             <Icon icon="mdi:swap-horizontal-bold" width={16} /> Conversión de Divisas
           </HeroButton>
-          <HeroButton variant="primary" icon={<Download size={18} />} onClick={exportCsv}>
-            <Icon icon="mdi:file-export-outline" width={16} /> Exportar CSV
+          <HeroButton variant="secondary" icon={<Download size={18} />} onClick={exportExcel}>
+            <Icon icon="mdi:microsoft-excel" width={16} /> Exportar Excel
           </HeroButton>
         </div>
       </motion.section>
@@ -439,6 +446,8 @@ export function PaymentsDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PaymentFormModal isOpen={isPaymentFormOpen} onClose={() => setIsPaymentFormOpen(false)} onSubmit={addPayment} />
     </motion.main>
   );
 }

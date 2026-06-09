@@ -24,7 +24,7 @@ export function PaymentsRecentActivity({ payments }: { payments: Payment[] }) {
             <span className="activity-amount">{formatCurrency(p.importe, p.moneda)}</span>
             <span className={`status-pill status-${p.estado}`}>
               <Icon icon={p.estado === 'completed' ? 'mdi:check-circle' : 'mdi:refresh-circle'} width={11} />
-              {p.estado}
+              {p.estado === 'completed' ? 'Completado' : 'Reembolsado'}
             </span>
           </div>
         </div>

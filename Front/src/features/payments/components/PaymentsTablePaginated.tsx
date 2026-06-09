@@ -120,7 +120,7 @@ export function PaymentsTablePaginated({ payments, loading }: { payments: Paymen
                     <td>
                       <span className={`status-pill status-${payment.estado}`}>
                         <Icon icon={payment.estado === 'completed' ? 'mdi:check-circle' : 'mdi:refresh-circle'} width={14} />
-                        {payment.estado}
+                        {payment.estado === 'completed' ? 'Completado' : 'Reembolsado'}
                       </span>
                     </td>
                     <td className="date-cell">
