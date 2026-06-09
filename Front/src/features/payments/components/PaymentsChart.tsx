@@ -1,16 +1,16 @@
 'use client';
 
 import type { Payment } from '@/lib/types';
-import { Icon } from '@iconify/react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 type Group = { currency: string; completed: number; refunded: number; total: number };
 
 const COLORS = {
-  USD: '#6366f1',
+  USD: '#818cf8',
   COP: '#22d3ee',
   EUR: '#f472b6',
-  MXN: '#10b981',
-  BRL: '#f59e0b',
+  MXN: '#34d399',
+  BRL: '#fbbf24',
 };
 
 function buildGroups(payments: Payment[]): Group[] {
@@ -28,38 +28,27 @@ function buildGroups(payments: Payment[]): Group[] {
 
 export function PaymentsChart({ payments }: { payments: Payment[] }) {
   const groups = buildGroups(payments);
-  const maxTotal = Math.max(1, ...groups.map((g) => g.total));
+
+  if (groups.length === 0) return <p className="secondary-text">No hay datos para mostrar.</p>;
 
   return (
-    <div className="bar-chart-custom">
-      {groups.length === 0 ? (
-        <p className="secondary-text">No hay datos para mostrar.</p>
-      ) : (
-        groups.map((g) => {
-          const color = COLORS[g.currency as keyof typeof COLORS] ?? '#888';
-          const completedW = (g.completed / maxTotal) * 100;
-          const refundedW = (g.refunded / maxTotal) * 100;
-          return (
-            <div key={g.currency} className="bar-group">
-              <div className="bar-label-row">
-                <div className="currency-tag" style={{ color }}>
-                  <Icon icon="mdi:currency-usd" width={15} />
-                  {g.currency}
-                </div>
-                <span className="bar-total">{g.total} pagos</span>
-              </div>
-              <div className="bar-track-double">
-                <div className="bar-segment bar-completed" style={{ width: `${completedW}%`, background: color + 'cc' }} />
-                <div className="bar-segment bar-refunded" style={{ width: `${refundedW}%`, background: '#f43f5e88' }} />
-              </div>
-              <div className="bar-detail">
-                <span><Icon icon="mdi:check-circle" width={12} color="#10b981" /> Completed {g.completed}</span>
-                <span><Icon icon="mdi:refresh" width={12} color="#f43f5e" /> Refunded {g.refunded}</span>
-              </div>
-            </div>
-          );
-        })
-      )}
+    <div style={{ width: '100%', height: 260 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={groups} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+          <XAxis dataKey="currency" tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
+          <Tooltip
+            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+            contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px' }}
+            itemStyle={{ fontSize: '13px', fontWeight: 500 }}
+          />
+          <Bar dataKey="completed" name="Completados" radius={[6, 6, 0, 0]}>
+            {groups.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[entry.currency as keyof typeof COLORS] || '#818cf8'} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
