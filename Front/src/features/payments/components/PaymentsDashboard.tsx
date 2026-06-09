@@ -223,6 +223,7 @@ export function PaymentsDashboard() {
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [conversionCurrency, setConversionCurrency] = useState('USD');
   const [selectedConversionId, setSelectedConversionId] = useState('');
+  const [activeTab, setActiveTab] = useState<'charts' | 'table'>('charts');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
   const [ratesUpdatedAt, setRatesUpdatedAt] = useState<string | null>(null);
   const [ratesError, setRatesError] = useState<string | null>(null);
@@ -334,12 +335,7 @@ export function PaymentsDashboard() {
             {availableCurrencies.map((c) => (<option key={c} value={c}>{c}</option>))}
           </select>
         </div>
-        <div className="filter-group">
-          <label htmlFor="f-display"><BarChart3 size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Moneda Reporte</label>
-          <select id="f-display" value={displayCurrency} onChange={(e) => setDisplayCurrency(e.target.value)}>
-            {supportedCurrencies.map((c) => (<option key={c} value={c}>{c}</option>))}
-          </select>
-        </div>
+
         <div className="filter-group">
           <label htmlFor="f-search"><Icon icon="mdi:magnify" width={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Búsqueda</label>
           <div className="search-wrap">
@@ -353,49 +349,60 @@ export function PaymentsDashboard() {
         {exchangeRates ? <><Icon icon="mdi:check-circle" color="#34d399" /> Tasas de cambio actualizadas: {ratesUpdatedAt}</> : <>{ratesError ?? 'Usando tasas locales de referencia.'}</>}
       </motion.p>
 
-      {/* ── Charts row 1 ── */}
-      <motion.section className="charts-main" variants={itemVariants}>
-        <HeroCard title="Tendencia de Rendimiento" className="chart-wide hero-card" topRight={<span className="chip chip-blue"><TrendingUp size={12} /> Histórico</span>}>
-          <p className="card-sub">Evolución de ingresos y reembolsos · últimos 14 días</p>
-          <PaymentsTrendChart payments={payments} />
-        </HeroCard>
-        <HeroCard title="Distribución" className="hero-card" topRight={<span className="chip chip-pink"><Icon icon="mdi:chart-donut-variant" width={14} /> Mix</span>}>
-          <p className="card-sub">Proporción completados vs reembolsados</p>
-          <PaymentsDonutChart payments={payments} />
-        </HeroCard>
-      </motion.section>
+      {/* ── Tabs ── */}
+      <motion.div className="tabs-container" variants={itemVariants} style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+        <button className={`tab-btn ${activeTab === 'charts' ? 'active' : ''}`} onClick={() => setActiveTab('charts')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: '12px', background: activeTab === 'charts' ? '#4f46e5' : 'rgba(255,255,255,0.05)', color: activeTab === 'charts' ? '#fff' : '#94a3b8', border: '1px solid', borderColor: activeTab === 'charts' ? '#6366f1' : 'rgba(255,255,255,0.1)', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 500 }}>
+          <Icon icon="mdi:chart-box-outline" width={20} /> Gráficos y Análisis
+        </button>
+        <button className={`tab-btn ${activeTab === 'table' ? 'active' : ''}`} onClick={() => setActiveTab('table')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: '12px', background: activeTab === 'table' ? '#4f46e5' : 'rgba(255,255,255,0.05)', color: activeTab === 'table' ? '#fff' : '#94a3b8', border: '1px solid', borderColor: activeTab === 'table' ? '#6366f1' : 'rgba(255,255,255,0.1)', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 500 }}>
+          <Icon icon="mdi:table-large" width={20} /> Tabla de Datos
+        </button>
+      </motion.div>
 
-      {/* ── Charts row 2 ── */}
-      <motion.section className="charts-secondary" variants={itemVariants}>
-        <HeroCard title="Ingresos por Divisa" className="hero-card" topRight={<span className="chip chip-teal"><Icon icon="mdi:chart-bar" width={14} /></span>}>
-          <p className="card-sub">Volumen segmentado por moneda</p>
-          <PaymentsChart payments={payments} />
-        </HeroCard>
-        <HeroCard title="Ranking de Cursos" className="hero-card" topRight={<span className="chip chip-green"><Icon icon="mdi:podium" width={14} /></span>}>
-          <p className="card-sub">Top 5 cursos con más ventas</p>
-          <PaymentsCourseRanking payments={payments} />
-        </HeroCard>
-        <HeroCard title="Actividad en Tiempo Real" className="hero-card" topRight={<span className="chip chip-amber"><Zap size={12} /></span>}>
-          <p className="card-sub">Últimas transacciones</p>
-          <PaymentsRecentActivity payments={payments} />
-        </HeroCard>
-      </motion.section>
+      {/* ── Tab Content ── */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'charts' ? (
+          <motion.div key="charts" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+            {/* ── Charts row 1 ── */}
+            <section className="charts-main" style={{ marginBottom: 24 }}>
+              <HeroCard title="Tendencia de Rendimiento" className="chart-wide hero-card" topRight={<span className="chip chip-blue"><TrendingUp size={12} /> Histórico</span>}>
+                <p className="card-sub">Evolución de ingresos y reembolsos · últimos 14 días</p>
+                <PaymentsTrendChart payments={payments} />
+              </HeroCard>
+              <HeroCard title="Distribución" className="hero-card" topRight={<span className="chip chip-pink"><Icon icon="mdi:chart-donut-variant" width={14} /> Mix</span>}>
+                <p className="card-sub">Proporción completados vs reembolsados</p>
+                <PaymentsDonutChart payments={payments} />
+              </HeroCard>
+            </section>
 
-      {/* ── Error ── */}
-      <AnimatePresence>
-        {error && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="error-bar">
-            <AlertCircle width={20} /> {error}
+            {/* ── Charts row 2 ── */}
+            <section className="charts-secondary">
+              <HeroCard title="Ingresos por Divisa" className="hero-card" topRight={<span className="chip chip-teal"><Icon icon="mdi:chart-bar" width={14} /></span>}>
+                <p className="card-sub">Volumen segmentado por moneda</p>
+                <PaymentsChart payments={payments} />
+              </HeroCard>
+              <HeroCard title="Ranking de Cursos" className="hero-card" topRight={<span className="chip chip-green"><Icon icon="mdi:podium" width={14} /></span>}>
+                <p className="card-sub">Top 5 cursos con más ventas</p>
+                <PaymentsCourseRanking payments={payments} />
+              </HeroCard>
+              <HeroCard title="Actividad en Tiempo Real" className="hero-card" topRight={<span className="chip chip-amber"><Zap size={12} /></span>}>
+                <p className="card-sub">Últimas transacciones</p>
+                <PaymentsRecentActivity payments={payments} />
+              </HeroCard>
+            </section>
+          </motion.div>
+        ) : (
+          <motion.div key="table" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+            {/* ── Table ── */}
+            <section className="table-section">
+              <PaymentsTablePaginated payments={payments} loading={loading} />
+            </section>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Table ── */}
-      <motion.section className="table-section" variants={itemVariants}>
-        <PaymentsTablePaginated payments={payments} loading={loading} />
-      </motion.section>
+      {/* ── Error ── */}
 
-      {/* ── Footer ── */}
       <motion.footer className="dash-footer" variants={itemVariants}>
         <p className="footer-text">
           <Sparkles size={14} color="#818cf8" />
