@@ -48,9 +48,10 @@ export function PaymentDetailsModal({ isOpen, onClose, payment }: PaymentDetails
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={onClose}>
           <motion.div
             className="modal-card details-modal-card"
+            onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
