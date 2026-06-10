@@ -5,6 +5,7 @@ import { Icon } from '@iconify/react';
 import { formatCurrency } from '@/lib/format';
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PaymentDetailsModal } from './PaymentDetailsModal';
 
 function getInitials(name: string) {
   return name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -25,6 +26,7 @@ function buildPageNumbers(current: number, total: number): (number | '...')[] {
 export function PaymentsTablePaginated({ payments, loading }: { payments: Payment[]; loading: boolean }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
   // Reset to page 1 if items per page changes or payments change
   useEffect(() => {
@@ -97,6 +99,7 @@ export function PaymentsTablePaginated({ payments, loading }: { payments: Paymen
                 paginatedPayments.map((payment, index) => (
                   <motion.tr 
                     key={payment.id_pago}
+                    onClick={() => setSelectedPayment(payment)}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }}
@@ -163,6 +166,12 @@ export function PaymentsTablePaginated({ payments, loading }: { payments: Paymen
           </div>
         </div>
       </div>
+
+      <PaymentDetailsModal 
+        isOpen={!!selectedPayment} 
+        onClose={() => setSelectedPayment(null)} 
+        payment={selectedPayment} 
+      />
     </motion.div>
   );
 }

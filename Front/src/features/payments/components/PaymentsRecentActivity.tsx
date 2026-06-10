@@ -3,8 +3,12 @@
 import type { Payment } from '@/lib/types';
 import { Icon } from '@iconify/react';
 import { formatCurrency } from '@/lib/format';
+import { useState } from 'react';
+import { PaymentDetailsModal } from './PaymentDetailsModal';
 
 export function PaymentsRecentActivity({ payments }: { payments: Payment[] }) {
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+
   const recent = [...payments]
     .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
     .slice(0, 5);
@@ -14,7 +18,7 @@ export function PaymentsRecentActivity({ payments }: { payments: Payment[] }) {
   return (
     <div className="activity-list">
       {recent.map((p) => (
-        <div key={p.id_pago} className="activity-row">
+        <div key={p.id_pago} className="activity-row" onClick={() => setSelectedPayment(p)}>
           <div className={`activity-dot dot-${p.estado}`} />
           <div className="activity-info">
             <span className="activity-name">{p.nombre}</span>
@@ -29,6 +33,12 @@ export function PaymentsRecentActivity({ payments }: { payments: Payment[] }) {
           </div>
         </div>
       ))}
+
+      <PaymentDetailsModal 
+        isOpen={!!selectedPayment} 
+        onClose={() => setSelectedPayment(null)} 
+        payment={selectedPayment} 
+      />
     </div>
   );
 }

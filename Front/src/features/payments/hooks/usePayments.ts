@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { fetchPayments, insertPayment } from '@/features/payments/services/paymentsService';
+import { getSupabaseClient } from '@/lib/supabaseClient';
 import type { Payment } from '@/lib/types';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
@@ -38,6 +39,47 @@ export function usePayments() {
     }
 
     load();
+  }, []);
+
+  // Supabase Real-time Subscription
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    const channel = supabase
+      .channel('pagos-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pagos' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newPayment = {
+              ...(payload.new as Payment),
+              importe: Number(payload.new.importe),
+              moneda: payload.new.moneda.toUpperCase(),
+            };
+            setPayments((prev) => {
+              // Evitar duplicados si ya lo agregamos localmente
+              if (prev.some((p) => p.id_pago === newPayment.id_pago)) return prev;
+              const updated = [newPayment, ...prev];
+              return updated.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+            });
+            toast.info(`Nuevo pago recibido: ${newPayment.nombre}`, { icon: '🚀', theme: 'dark' });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedPayment = {
+              ...(payload.new as Payment),
+              importe: Number(payload.new.importe),
+              moneda: payload.new.moneda.toUpperCase(),
+            };
+            setPayments((prev) => prev.map((p) => p.id_pago === updatedPayment.id_pago ? updatedPayment : p));
+          } else if (payload.eventType === 'DELETE') {
+            setPayments((prev) => prev.filter((p) => p.id_pago !== payload.old.id_pago));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const availableCurrencies = useMemo(() => {
