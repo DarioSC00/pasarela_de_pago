@@ -62,7 +62,7 @@ export function usePayments() {
               const updated = [newPayment, ...prev];
               return updated.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
             });
-            toast.info(`Nuevo pago recibido: ${newPayment.nombre}`, { icon: '🚀', theme: 'dark' });
+            toast.info(`🚀 Nuevo pago recibido: ${newPayment.nombre}`, { theme: 'dark' });
           } else if (payload.eventType === 'UPDATE') {
             const updatedPayment = {
               ...(payload.new as Payment),
