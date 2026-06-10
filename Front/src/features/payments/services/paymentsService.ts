@@ -22,31 +22,24 @@ export async function fetchPayments(): Promise<Payment[]> {
 }
 
 export async function insertPayment(payment: Partial<Payment>): Promise<Payment> {
-  // Disparamos el webhook a través de nuestro backend proxy para evitar problemas de CORS
-  try {
-    await fetch('/api/n8n', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payment),
-    });
-  } catch (e) {
-    console.warn('Failed to trigger n8n webhook proxy:', e);
+  // Disparamos el webhook a través de nuestro backend proxy para evitar problemas de CORS.
+  // El webhook de n8n se encargará de guardar el pago en Supabase y enviar el correo.
+  const response = await fetch('/api/n8n', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payment),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Error en el webhook: ${errorText}`);
   }
 
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('pagos')
-    .insert([payment])
-    .select()
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
+  // Devolvemos el pago optimista; la suscripción realtime de Supabase
+  // se encargará de actualizar el estado cuando n8n lo inserte.
   return {
-    ...(data as Payment),
-    importe: Number(data.importe),
-    moneda: data.moneda.toUpperCase(),
+    ...(payment as Payment),
+    importe: Number(payment.importe),
+    moneda: payment.moneda?.toUpperCase() || 'USD',
   };
 }
