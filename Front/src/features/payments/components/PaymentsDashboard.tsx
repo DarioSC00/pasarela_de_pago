@@ -122,7 +122,7 @@ function AiChatModal({ isOpen, onClose, payments, convertedRevenue, displayCurre
         const completedRevStr = formatCurrency(convertedRevenue, displayCurrency);
         response = `💰 Ingresos totales (${displayCurrency}): ${completedRevStr}\n\nDesglose por moneda: ${currencies.map(c => `${c}: ${payments.filter(p => p.moneda === c && p.estado === 'completed').length} pagos`).join(' · ')}\n\nBasado en la velocidad de ventas actual, proyectamos un crecimiento del 12-18% para el próximo período.`;
       } else if (q.includes('curso') || q.includes('popular') || q.includes('mejor') || q.includes('ranking') || q.includes('top')) {
-        const rankList = courseRanking.map(([name, d], i) => `${['🥇','🥈','🥉','4️⃣','5️⃣'][i]} ${name}: ${d.count} ventas`).join('\n');
+        const rankList = courseRanking.map(([name, d], i) => `${['🥇', '🥈', '🥉', '4️⃣', '5️⃣'][i]} ${name}: ${d.count} ventas`).join('\n');
         response = `🏆 Ranking de cursos:\n\n${rankList}\n\nRecomendación: Crea contenido complementario para "${topCourse}" y considera bundles con los cursos más bajos del ranking.`;
       } else if (q.includes('reembolso') || q.includes('refund') || q.includes('devolución') || q.includes('cancel')) {
         const riskCourses = new Map<string, number>();
@@ -181,11 +181,11 @@ function AiChatModal({ isOpen, onClose, payments, convertedRevenue, displayCurre
         <div className="ai-messages" ref={scrollRef}>
           <AnimatePresence>
             {messages.map((msg, i) => (
-              <motion.div key={`${i}-${msg.text.slice(0,10)}`} className={`ai-msg ${msg.role === 'user' ? 'ai-msg-user' : ''}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+              <motion.div key={`${i}-${msg.text.slice(0, 10)}`} className={`ai-msg ${msg.role === 'user' ? 'ai-msg-user' : ''}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
                 <div className="ai-msg-dot" style={{ background: msg.color, boxShadow: `0 0 8px ${msg.color}60` }} />
                 <div className="ai-msg-text">
                   <div className="ai-msg-label" style={{ color: msg.role === 'ai' ? msg.color : '#94a3b8' }}>{msg.role === 'ai' ? 'FormaPro AI' : 'Tú'}</div>
-                  {msg.text.split('\n').map((line, j) => <span key={j}>{line}<br/></span>)}
+                  {msg.text.split('\n').map((line, j) => <span key={j}>{line}<br /></span>)}
                 </div>
               </motion.div>
             ))}
@@ -329,9 +329,9 @@ export function PaymentsDashboard() {
           </select>
         </div>
         <div className="filter-group">
-          <label htmlFor="f-currency"><Globe size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Moneda Origen</label>
+          <label htmlFor="f-currency"><Globe size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Moneda</label>
           <select id="f-currency" value={currencyFilter} onChange={(e) => setCurrencyFilter(e.target.value)}>
-            <option value="all">Todas las monedas</option>
+            <option value="all">Moneda origen</option>
             {availableCurrencies.map((c) => (<option key={c} value={c}>{c}</option>))}
           </select>
         </div>

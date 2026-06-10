@@ -147,6 +147,7 @@ body {
 .filter-group label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
 .filter-group select { font-size: 14px; width: 100%; padding: 11px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); background: rgba(15,23,42,0.8); color: var(--text-primary); backdrop-filter: blur(8px); transition: all 0.25s; cursor: pointer; outline: none; appearance: none; font-family: var(--font-sans); }
 .filter-group select:hover, .filter-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.1), 0 0 15px rgba(99,102,241,0.05); }
+.filter-group select option { background: #0f172a; color: #f1f5f9; }
 .search-wrap { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 11px 16px; background: rgba(15,23,42,0.8); backdrop-filter: blur(8px); transition: all 0.25s; }
 .search-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.1), 0 0 15px rgba(99,102,241,0.05); }
 .search-wrap input { border: none; background: transparent; font-size: 14px; color: var(--text-primary); outline: none; flex: 1; font-family: var(--font-sans); }
@@ -222,6 +223,7 @@ tbody tr:last-child { border-bottom: none; }
 .page-size-selector { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); }
 .page-size-selector select { background: rgba(255,255,255,0.04); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; outline: none; cursor: pointer; font-family: var(--font-sans); transition: all 0.2s; }
 .page-size-selector select:hover { border-color: var(--accent); }
+.page-size-selector select option { background: #0f172a; color: #f1f5f9; }
 
 /* ── Modal ── */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 50; }
